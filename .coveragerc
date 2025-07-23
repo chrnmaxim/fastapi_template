@@ -1,0 +1,11 @@
+# .coveragerc to control coverage.py
+# Configuration reference: https://coverage.readthedocs.io/en/7.2.1/config.html
+[run]
+omit =
+    ./alembic/*
+    ./tests/*
+    ./__init__.py
+    ./*/__init__.py
+    ./*/*/__init__.py
+    ./*/*/*/__init__.py
+    main.py
