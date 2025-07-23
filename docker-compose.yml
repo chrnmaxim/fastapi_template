@@ -1,0 +1,89 @@
+# MARK: Base
+x-postgres-base: &postgres-base
+  image: postgres:16-alpine
+  restart: always
+  healthcheck:
+    test:
+      - CMD-SHELL
+      - pg_isready -U postgres
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+x-app-base: &app-base
+  build:
+    context: ./
+  restart: always
+
+# MARK: Test
+services:
+  postgres-test:
+    profiles: ["test"]
+    <<: *postgres-base
+    container_name: postgres-test
+    env_file: "./src/.env.test"
+    networks:
+      - test
+
+  app-test:
+    profiles: ["test"]
+    <<: *app-base
+    container_name: app-test
+    command: sh -c "
+      alembic upgrade heads &&
+      coverage run --source='.' \
+      -m pytest \
+      -s -r A \
+      --rootdir=/app/ \
+      --disable-pytest-warnings && \
+      coverage html"
+    env_file: "./src/.env.test"
+    volumes:
+      - ./:/app
+      - /app/.venv
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    networks:
+      - test
+
+# MARK: Dev
+  postgres-dev:
+    profiles: ["dev"]
+    <<: *postgres-base
+    container_name: postgres-dev
+    env_file: "./src/.env"
+    ports:
+      - ${POSTGRES_PORT}:5432
+    expose:
+      - 5432
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    networks:
+      - dev
+
+  app-dev:
+    profiles: ["dev"]
+    <<: *app-base
+    container_name: app-dev
+    command: uvicorn src.main:app --reload --host 0.0.0.0 --port 8000 --loop uvloop
+    env_file: "./src/.env"
+    volumes:
+      - ./:/app
+      - /app/.venv
+    ports:
+      - 8000:8000
+    expose:
+      - 8000
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+    networks:
+      - dev
+
+volumes:
+  pgdata-dev:
+
+networks:
+  test:
+  dev:

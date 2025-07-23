@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+.github
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__
+**/*.pyc
+
+# Unit test / coverage reports
+htmlcov/
+.coverage
+.coverage*
+.pytest_cache
+
+# Environments
+**/*.env*
+.venv
+
+# Docker
+docker-compose*
+Dockerfile
+.docker
+.dockerignore
+
+# Docs
+**/*.md
+
+# Alembic
+alembic
+alembic.ini
+
+# Configuration
+Makefile
+.ruff_cache
+.vscode
