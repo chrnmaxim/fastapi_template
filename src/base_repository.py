@@ -266,7 +266,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             where: where clauses.
             session(AsyncSession): Asynchronous SQLAlchemy session.
             update_data(UpdateSchemaType|dict[str, Any]): Pydantic schema or dictionary of data to update.
-            return_type(Literal["model", "id_int", "id_uuid] | None): function return type, `model` by default.
+            return_type(Literal["model", "id_int", "id_uuid"] | None): function return type, `model` by default.
 
         Returns:
             ModelType|uuid.UUID|None:
