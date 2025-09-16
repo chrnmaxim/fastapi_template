@@ -21,8 +21,8 @@ jobs:
       - name: Set Up Python
         run: uv python install
 
-      - name: Ruff Checks
-        run: uvx ruff@0.12.4 check . && uvx ruff@0.12.4 check --select I . && uvx ruff@0.12.4 format --check .
+      - name: Ruff and mypy Checks
+        run: make ruff_check && make mypy_check
 
   app_tests:
     name: App Tests

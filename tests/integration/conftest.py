@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 import httpx
 import pytest_asyncio
 from fastapi import APIRouter, FastAPI
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies import get_session
 
@@ -15,7 +16,9 @@ class BaseTestRouter:
     base_route: str
 
     @pytest_asyncio.fixture(scope="function")
-    async def router_client(self, session) -> AsyncGenerator[httpx.AsyncClient, None]:
+    async def router_client(
+        self, session: AsyncSession
+    ) -> AsyncGenerator[httpx.AsyncClient, None]:
         """
         `AsyncGenerator` for `httpx.AsyncClient` instance.
 
