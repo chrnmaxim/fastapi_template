@@ -28,7 +28,7 @@ class ApiSettings(BaseSettings):
     MAX_OVERFLOW: int
 
     @property
-    def DATABASE_URL(self):
+    def DATABASE_URL(self) -> str:
         """PostgreSQL database URL."""
 
         return (
@@ -39,4 +39,4 @@ class ApiSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=api_constants.ENV_PATH, extra="allow")
 
 
-api_settings: ApiSettings = ApiSettings()
+api_settings: ApiSettings = ApiSettings()  # type: ignore

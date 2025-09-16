@@ -2,6 +2,8 @@ ruff_fix:
 	uv run ruff format . && uv run ruff check --fix . && uv run ruff check --fix --select I .
 ruff_check:
 	uv run ruff check . && uv run ruff check --select I . && uv run ruff format --check .
+mypy_check:
+	uv run mypy .
 start_dev:
 	docker compose --profile dev up -d --build
 	docker container exec app-dev alembic upgrade heads
