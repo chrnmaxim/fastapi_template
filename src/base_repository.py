@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy import Select, delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
+from sqlalchemy.sql._typing import _ColumnExpressionArgument
 
 from src.database import Base
 
@@ -38,7 +39,15 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         cls,
         session: AsyncSession,
         create_data: CreateSchemaType | dict[str, Any],
-        return_type: Literal["id"],
+        return_type: Literal["id_int"],
+    ) -> int: ...
+    @overload
+    @classmethod
+    async def add(
+        cls,
+        session: AsyncSession,
+        create_data: CreateSchemaType | dict[str, Any],
+        return_type: Literal["id_uuid"],
     ) -> uuid.UUID: ...
     @overload
     @classmethod
@@ -54,8 +63,8 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         cls,
         session: AsyncSession,
         create_data: CreateSchemaType | dict[str, Any],
-        return_type: Literal["model", "id"] | None = "model",
-    ) -> ModelType | uuid.UUID | None:
+        return_type: Literal["model", "id_int", "id_uuid"] | None = "model",
+    ) -> ModelType | uuid.UUID | int | None:
         """
         Add a record to the current session.
 
@@ -81,8 +90,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         if return_type is None:
             await session.execute(stmt)
-        elif return_type == "id":
-            stmt = stmt.returning(cls.model.id)
+            return None
+        elif return_type in ("id_int", "id_uuid"):
+            stmt = stmt.returning(cls.model.id)  # type: ignore
         elif return_type == "model":
             stmt = stmt.returning(cls.model)
 
@@ -108,10 +118,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     @overload
     @classmethod
     async def add_bulk(
-        cls,
-        session: AsyncSession,
-        create_data: list[dict[str, Any]],
-        return_type: None,
+        cls, session: AsyncSession, create_data: list[dict[str, Any]], return_type: None
     ) -> None: ...
 
     @classmethod
@@ -139,8 +146,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         if return_type is None:
             await session.execute(stmt, create_data)
+            return None
         elif return_type == "id":
-            stmt = stmt.returning(cls.model.id)
+            stmt = stmt.returning(cls.model.id)  # type: ignore
         elif return_type == "model":
             stmt = stmt.returning(cls.model)
 
@@ -149,7 +157,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     # MARK: Read
     @classmethod
-    async def get_one_or_none(cls, *where, session: AsyncSession) -> ModelType | None:
+    async def get_one_or_none(
+        cls, *where: _ColumnExpressionArgument[bool], session: AsyncSession
+    ) -> ModelType | None:
         """
         Return a single record matching `where` clauses or `None` if no record was found.
 
@@ -166,7 +176,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     @classmethod
     async def get_one_or_none_id(
-        cls, *where, session: AsyncSession
+        cls, *where: _ColumnExpressionArgument[bool], session: AsyncSession
     ) -> uuid.UUID | None:
         """
         Return an `id` of single record matching `where` clauses or `None` if no record was found.
@@ -179,11 +189,13 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             uuid.UUID|None: The model instance id found, or `None` if no record was found.
         """
 
-        stmt = select(cls.model.id).where(*where)
+        stmt = select(cls.model.id).where(*where)  # type: ignore
         return await session.scalar(stmt)
 
     @classmethod
-    async def get_exactly_one(cls, *where, session: AsyncSession) -> ModelType:
+    async def get_exactly_one(
+        cls, *where: _ColumnExpressionArgument[bool], session: AsyncSession
+    ) -> ModelType:
         """
         Return exactly one result matching `where` clauses or raise an exception.
 
@@ -204,7 +216,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     @classmethod
     async def update(
         cls,
-        *where,
+        *where: _ColumnExpressionArgument[bool],
         session: AsyncSession,
         update_data: UpdateSchemaType | dict[str, Any],
         return_type: Literal["model"] = "model",
@@ -213,16 +225,25 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     @classmethod
     async def update(
         cls,
-        *where,
+        *where: _ColumnExpressionArgument[bool],
         session: AsyncSession,
         update_data: UpdateSchemaType | dict[str, Any],
-        return_type: Literal["id"],
+        return_type: Literal["id_uuid"],
     ) -> uuid.UUID | None: ...
     @overload
     @classmethod
     async def update(
         cls,
-        *where,
+        *where: _ColumnExpressionArgument[bool],
+        session: AsyncSession,
+        update_data: UpdateSchemaType | dict[str, Any],
+        return_type: Literal["id_int"],
+    ) -> int | None: ...
+    @overload
+    @classmethod
+    async def update(
+        cls,
+        *where: _ColumnExpressionArgument[bool],
         session: AsyncSession,
         update_data: UpdateSchemaType | dict[str, Any],
         return_type: None,
@@ -231,11 +252,11 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     @classmethod
     async def update(
         cls,
-        *where,
+        *where: _ColumnExpressionArgument[bool],
         session: AsyncSession,
         update_data: UpdateSchemaType | dict[str, Any],
-        return_type: Literal["model", "id"] | None = "model",
-    ) -> ModelType | uuid.UUID | None:
+        return_type: Literal["model", "id_uuid", "id_int"] | None = "model",
+    ) -> ModelType | uuid.UUID | int | None:
         """
         Update a record in the current session matching `where` clauses.
 
@@ -245,7 +266,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             where: where clauses.
             session(AsyncSession): Asynchronous SQLAlchemy session.
             update_data(UpdateSchemaType|dict[str, Any]): Pydantic schema or dictionary of data to update.
-            return_type(Literal["model", "id"] | None): function return type, `model` by default.
+            return_type(Literal["model", "id_int", "id_uuid] | None): function return type, `model` by default.
 
         Returns:
             ModelType|uuid.UUID|None:
@@ -262,8 +283,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         if return_type is None:
             await session.execute(stmt)
-        elif return_type == "id":
-            stmt = stmt.returning(cls.model.id)
+            return None
+        elif return_type in ("id_uuid", "id_int"):
+            stmt = stmt.returning(cls.model.id)  # type: ignore
         elif return_type == "model":
             stmt = stmt.returning(cls.model)
 
@@ -289,7 +311,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     @classmethod
     async def delete(
         cls,
-        *where,
+        *where: _ColumnExpressionArgument[bool],
         session: AsyncSession,
         return_type: Literal["model"] = "model",
     ) -> ModelType | None: ...
@@ -297,15 +319,23 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     @classmethod
     async def delete(
         cls,
-        *where,
+        *where: _ColumnExpressionArgument[bool],
         session: AsyncSession,
-        return_type: Literal["id"],
+        return_type: Literal["id_uuid"],
     ) -> uuid.UUID | None: ...
     @overload
     @classmethod
     async def delete(
         cls,
-        *where,
+        *where: _ColumnExpressionArgument[bool],
+        session: AsyncSession,
+        return_type: Literal["id_int"],
+    ) -> int | None: ...
+    @overload
+    @classmethod
+    async def delete(
+        cls,
+        *where: _ColumnExpressionArgument[bool],
         session: AsyncSession,
         return_type: None,
     ) -> None: ...
@@ -313,17 +343,17 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     @classmethod
     async def delete(
         cls,
-        *where,
+        *where: _ColumnExpressionArgument[bool],
         session: AsyncSession,
-        return_type: Literal["model", "id"] | None = "model",
-    ) -> ModelType | uuid.UUID | None:
+        return_type: Literal["model", "id_uuid", "id_int"] | None = "model",
+    ) -> ModelType | uuid.UUID | int | None:
         """
         Delete a record matching `where` clauses.
 
         Args:
             where: where clauses.
             session(AsyncSession): Asynchronous SQLAlchemy session.
-            return_type(Literal["model", "id"] | None): function return type, `model` by default.
+            return_type(Literal["model", "id_uuid", "id_int"] | None): function return type, `model` by default.
 
         Returns:
             ModelType|uuid.UUID|None:
@@ -331,20 +361,22 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
                 or `None` depends on `return_type` or if no record was found.
         """
 
-        stmt = delete(cls.model).where(*where)
-
         if return_type is None:
+            stmt = delete(cls.model).where(*where)
             await session.execute(stmt)
-        elif return_type == "id":
-            stmt = stmt.returning(cls.model.id)
+            return None
+        elif return_type in ("id_uuid", "id_int"):
+            stmt = delete(cls.model).where(*where).returning(cls.model.id)  # type: ignore
         elif return_type == "model":
-            stmt = stmt.returning(cls.model)
+            stmt = delete(cls.model).where(*where).returning(cls.model)  # type: ignore
 
         return await session.scalar(stmt)
 
     # MARK: Count
     @classmethod
-    async def count(cls, *where, session: AsyncSession) -> int:
+    async def count(
+        cls, *where: _ColumnExpressionArgument[bool], session: AsyncSession
+    ) -> int:
         """
         Count rows in the database matching `where` clauses.
 
@@ -376,3 +408,22 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
 
         return await session.scalar(count_stmt) or 0
+
+    # MARK: Exists
+    @classmethod
+    async def check_if_exists(
+        cls, *where: _ColumnExpressionArgument[bool], session: AsyncSession
+    ) -> bool:
+        """
+        Check if record matching where clauses exists in the database
+
+        Args:
+            where: where clauses.
+            session(AsyncSession): Asynchronous SQLAlchemy session.
+
+        Returns:
+            bool: `True` if record exists, `False` otherwise.
+        """
+
+        stmt = select(1).select_from(cls.model).where(*where)
+        return bool(await session.scalar(stmt))

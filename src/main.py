@@ -36,7 +36,7 @@ for router in routers:
 if api_settings.MODE != "PROD":
 
     @app.get(path="/", response_class=HTMLResponse, include_in_schema=False)
-    def home():
+    def home() -> str:
         return f"""
         <html>
         <head><title>{app.title}</title></head>
