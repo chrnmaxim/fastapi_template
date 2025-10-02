@@ -15,9 +15,6 @@ class ApiSettings(BaseSettings):
     APP_NAME: str = "app"
     APP_VERSION: str = "0.1.0"
 
-    # Security
-    CORS_ORIGINS: list[str] = ["*"]
-
     # Postgres
     POSTGRES_DB: str
     POSTGRES_USER: str

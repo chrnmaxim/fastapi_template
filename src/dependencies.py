@@ -11,14 +11,11 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     AsyncGenerator of an `AsyncSession` instance.
 
     Note:
-    * The session would rollback automatically inside
-    the context manager in case of exception at closure.
-    * Connection is checkout from the pool at first call to the session.
-    * Commit must be done explicitly.
+    * The transaction would be automatically committed or rolled back
+    in case of any exception at the exit from the context manager.
+    * DB connection is checked out from the pool at first
+    `AsyncSession.execute` call and remains so until the exit from the context manager.
     """
 
-    async with SessionLocal() as session:
-        try:
-            yield session
-        except Exception as ex:
-            raise ex
+    async with SessionLocal.begin() as session:
+        yield session
