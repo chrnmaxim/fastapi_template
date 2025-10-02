@@ -19,6 +19,35 @@
 * `Makefile` with commands for convenient usage.
 * CI workflow in GitHub Actions that starts with each commit into open PR into `develop` or `main` branches.
 
+## Optimization key points
+
+### SQLAlchemy
+* SQLAlchemy Connection Pooling with [AsyncAdaptedQueuePool](https://docs.sqlalchemy.org/en/20/core/pooling.html#sqlalchemy.pool.AsyncAdaptedQueuePool) allows to maintain connection to database.
+> [!NOTE]
+> `POOL_SIZE` and `MAX_OVERFLOW` environment variables should be set taking `uvicorn --workers N` into account.
+* `src.dependencies.get_session` provides AsyncGenerator of an [AsyncSession](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html#sqlalchemy.ext.asyncio.AsyncSession) instance with the transaction that would be automatically committed or rolled back in case of any exception at the exit from the context manager.
+> [!NOTE]
+> DB connection is checked out from the pool at first `AsyncSession.execute` call and remains so until the exit from the context manager.
+
+### FastAPI
+* [ORJSONResponse](https://fastapi.tiangolo.com/advanced/custom-response/#orjsonresponse) as
+`default_response_class` in FastAPI configuration which uses the high-performance [orjson](https://github.com/ijl/orjson) library to serialize data to JSON.
+* [Middlewares](https://fastapi.tiangolo.com/tutorial/middleware/) are disabled, since usually the app runs behind a reverse proxy.
+* [src.healthcheck.router.healthcheck](src/healthcheck/router.py) returns [ORJSONResponse](https://fastapi.tiangolo.com/advanced/custom-response/#orjsonresponse)
+directly instead of the pydantic model [src.healthcheck.schemas.HealthCheckSchema](src/healthcheck/schemas.py) to avoid overcomplicated (_in some cases_) validation and serialization to an object compatible with JSON by [jsonable_encoder](https://fastapi.tiangolo.com/tutorial/encoder/).
+
+### Uvicorn
+When running uvicorn in production / stage environment behind a reverse proxy the start up command would be:
+```bash
+uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers $UVICORN_WORKERS --loop uvloop --proxy-headers --no-access-log
+```
+* `--workers $UVICORN_WORKERS` - Set workers number according to number of vCPU of the server (as a start option).
+* `-loop uvloop` -  Set the event loop implementation to [uvloop](https://github.com/MagicStack/uvloop) explicitly (uvloop makes asyncio 2-4x faster).
+* `--proxy-headers` - Enable proxy headers.
+* `--no-access-log` - Disable uvicorn access log.
+
+> [!NOTE]
+> If uvicorn and a reverse proxy are running on the same server it is more beneficial to run establish a connection via UNIX domain socket with `--uds <path>` command (respectful configuration of a reverse proxy should be set).
 
 ## Use as Template
 
