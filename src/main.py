@@ -1,8 +1,6 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, ORJSONResponse
 
-from src import api_constants
 from src.api_config import api_settings
 from src.healthcheck.router import healthcheck_router
 
@@ -17,16 +15,8 @@ app = FastAPI(
     docs_url="/docs" if api_settings.MODE != "PROD" else None,
     redoc_url="/redoc" if api_settings.MODE != "PROD" else None,
     openapi_url="/openapi.json" if api_settings.MODE != "PROD" else None,
+    default_response_class=ORJSONResponse,  # JSON response using the high-performance orjson library to serialize data to JSON
 )
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=api_settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=api_constants.CORS_METHODS,
-)
-
 
 routers = (healthcheck_router,)
 for router in routers:

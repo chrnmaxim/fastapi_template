@@ -4,7 +4,6 @@ from sqlalchemy import TextClause, text
 
 # MARK: Security
 ENV_PATH: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-CORS_METHODS = ("DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT")
 
 # MARK: Database
 DB_NAMING_CONVENTION: dict[str, str] = {
